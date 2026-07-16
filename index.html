@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마지막 균형의 시대 - 얼티밋 정밀 밸런스판</title>
+    <style>
+        :root {
+            --bg-color: #06080a;
+            --panel-bg: #0f1216;
+            --border-color: #21262d;
+            --text-color: #c9d1d9;
+            --accent-color: #58a6ff;
+            --danger-color: #f85149;
+            --success-color: #56d364;
+            --warning-color: #d29922;
+            --purple-color: #bc8cff;
+            --fog-color: #030405;
+            --xp-color: #d29922;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+
+        header {
+            width: 100%; background-color: #010409; border-bottom: 1px solid var(--border-color);
+            padding: 10px 0; text-align: center;
+        }
+
+        header h1 { margin: 0; font-size: 1.3rem; color: var(--accent-color); letter-spacing: 2px; }
+
+        .main-container {
+            display: flex; width: 1250px; max-width: 98%; margin: 15px 0; gap: 15px;
+        }
+
+        .panel {
+            background-color: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 12px;
+        }
+
+        .panel h2 {
+            margin-top: 0; margin-bottom: 8px; font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 5px;
+            color: var(--accent-color); display: flex; justify-content: space-between;
+        }
+
+        .left-side, .right-side { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+        .center-side { flex: 1.8; display: flex; flex-direction: column; gap: 12px; }
+
+        .sdg-group { display: flex; flex-direction: column; gap: 5px; }
+        .sdg-item { display: flex; flex-direction: column; gap: 2px; }
+        .sdg-label { display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: bold; }
+        .sdg-track { width: 100%; height: 6px; background-color: #161b22; border-radius: 3px; overflow: hidden; border: 1px solid #30363d; }
+        .sdg-fill { height: 100%; width: 50%; transition: width 0.3s ease; }
+
+        .char-btn-group { display: flex; gap: 4px; margin-bottom: 8px; }
+        .char-btn {
+            flex: 1; padding: 5px; background-color: #21262d; border: 1px solid var(--border-color);
+            color: var(--text-color); font-size: 0.75rem; font-weight: bold; cursor: pointer; border-radius: 4px;
+        }
+        .char-btn.active { background-color: var(--accent-color); color: #0d1117; border-color: var(--accent-color); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 0.75rem; }
+        .stats-item { background-color: #161b22; padding: 4px; border-radius: 3px; border: 1px solid #30363d; }
+
+        .xp-container { margin-top: 8px; background-color: #161b22; border: 1px solid #30363d; padding: 5px; border-radius: 4px; }
+        .xp-label { display: flex; justify-content: space-between; font-size: 0.65rem; font-weight: bold; margin-bottom: 3px; }
+        .xp-track { height: 5px; background-color: #0d1117; border-radius: 3px; overflow: hidden; }
+        .xp-fill { height: 100%; width: 0%; background-color: var(--xp-color); transition: width 0.3s; }
+
+        .stage-info-bar {
+            background-color: #161b22; border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;
+        }
+
+        .grid-board {
+            display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+            gap: 5px; background-color: #0d1117; padding: 6px; border-radius: 6px;
+            border: 1px solid var(--border-color); aspect-ratio: 1.05 / 1; position: relative;
+        }
+
+        .tile {
+            background-color: #161b22; border: 1px solid #30363d; border-radius: 4px;
+            position: relative; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; cursor: pointer; transition: background-color 0.1s; user-select: none;
+        }
+        .tile.movable { border-color: var(--success-color) !important; box-shadow: inset 0 0 6px rgba(86,211,100,0.2); }
+        .tile.attackable { border-color: var(--danger-color) !important; box-shadow: inset 0 0 6px rgba(248,81,73,0.25); }
+        .tile:hover { border-color: var(--accent-color); background-color: #21262d; }
+        
+        .tile.foggy { background-color: var(--fog-color) !important; border-color: #0d1117 !important; cursor: default; }
+        .tile.foggy * { visibility: hidden !important; }
+
+        .tile.fire-tile { background-color: #381a1c; border-color: var(--danger-color); }
+        .tile.water-tile { background-color: #12283a; border-color: var(--accent-color); }
+        .tile.collapsed { background-color: #010409 !important; border: 1px dashed #30363d !important; cursor: not-allowed; }
+        .tile.unexploded-bomb { border: 2px dashed var(--warning-color) !important; background-color: #2b2515; }
+
+        .unit-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 1px; position: relative; }
+        .unit-icon { font-size: 1.1rem; }
+        .unit-name { font-size: 0.6rem; font-weight: bold; text-align: center; margin: 0; }
+
+        .hp-bar-outer { width: 80%; height: 3px; background-color: #30363d; border-radius: 1.5px; overflow: hidden; }
+        .hp-bar-inner { height: 100%; background-color: var(--success-color); width: 100%; }
+        .tile.enemy-on .hp-bar-inner { background-color: var(--danger-color); }
+
+        .intent-badge {
+            position: absolute; top: 2px; right: 2px; background-color: rgba(248, 81, 73, 0.95);
+            color: #fff; font-size: 0.5rem; padding: 1px 2px; border-radius: 2px; font-weight: bold; z-index: 10;
+        }
+
+        .action-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .action-btn {
+            padding: 8px; font-weight: bold; font-size: 0.75rem; border: none;
+            border-radius: 4px; cursor: pointer; color: #0d1117; transition: 0.1s;
+        }
+        .btn-blue { background-color: var(--accent-color); }
+        .btn-purple { background-color: var(--purple-color); color: #fff; }
+        .btn-green { background-color: var(--success-color); }
+        .btn-gray { background-color: #484f58; color: #fff; }
+        .action-btn:hover { filter: brightness(1.1); }
+        .action-btn:disabled { background-color: #21262d; color: #484f58; cursor: not-allowed; }
+
+        .damage-popup {
+            position: absolute; color: var(--danger-color); font-weight: bold; font-size: 0.95rem;
+            text-shadow: 1px 1px 2px #000; animation: floatUp 0.8s forwards ease-out; pointer-events: none; z-index: 999;
+        }
+        .level-popup { color: var(--xp-color) !important; font-size: 1.2rem !important; }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .console-log {
+            background-color: #010409; border: 1px solid var(--border-color); border-radius: 4px;
+            height: 110px; overflow-y: auto; padding: 6px; font-family: monospace; font-size: 0.68rem;
+        }
+        .log-line { margin-bottom: 1px; border-bottom: 1px solid #161b22; padding-bottom: 1px; }
+        .log-system { color: #8b949e; }
+        .log-player { color: var(--success-color); }
+        .log-enemy { color: var(--danger-color); }
+        .log-gimmick { color: var(--purple-color); }
+        .log-levelup { color: var(--xp-color); font-weight: bold; }
+
+        .enemy-radar-box {
+            background-color: #161b22; border: 1px solid #30363d; padding: 6px;
+            border-radius: 4px; font-size: 0.72rem; min-height: 140px; max-height: 250px; overflow-y: auto;
+        }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); z-index: 9999; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: var(--panel-bg); border: 2px solid var(--accent-color);
+            border-radius: 6px; padding: 16px; max-width: 450px; width: 90%; text-align: center;
+        }
+        .modal-btn {
+            background-color: var(--accent-color); color: #0d1117; padding: 6px 12px;
+            font-weight: bold; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>마지막 균형의 시대 (The Age of Last Balance) - 전술 밸런스판</h1>
+    </header>
+
+    <div class="main-container">
+        <div class="left-side">
+            <div class="panel">
+                <h2>아스트레이아의 저울 (SDGs)</h2>
+                <div class="sdg-group">
+                    <div class="sdg-item">
+                        <div class="sdg-label"><span>Human (빈곤/건강)</span><span id="sdg-human-val">50%</span></div>
+                        <div class="sdg-track"><div class="sdg-fill" id="sdg-human-bar" style="background-color: #f85149;"></div></div>
+                    </div>
+                    <div class="sdg-item">
+                        <div class="sdg-label"><span>Society (평등/교육)</span><span id="sdg-society-val">50%</span></div>
+                        <div class="sdg-track"><div class="sdg-fill" id="sdg-society-bar" style="background-color: #bc8cff;"></div></div>
+                    </div>
+                    <div class="sdg-item">
+                        <div class="sdg-label"><span>Planet (기후/생태계)</span><span id="sdg-planet-val">50%</span></div>
+                        <div class="sdg-track"><div class="sdg-fill" id="sdg-planet-bar" style="background-color: #56d364;"></div></div>
+                    </div>
+                    <div class="sdg-item">
+                        <div class="sdg-label"><span>Prosperity (인프라)</span><span id="sdg-prosperity-val">50%</span></div>
+                        <div class="sdg-track"><div class="sdg-fill" id="sdg-prosperity-bar" style="background-color: #d29922;"></div></div>
+                    </div>
+                    <div class="sdg-item">
+                        <div class="sdg-label"><span>Peace (정의/평화)</span><span id="sdg-peace-val">50%</span></div>
+                        <div class="sdg-track"><div class="sdg-fill" id="sdg-peace-bar" style="background-color: #58a6ff;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>조율사 (Player)</h2>
+                <div class="char-btn-group">
+                    <button class="char-btn active" id="btn-calix" onclick="switchCharacter('Calix')">칼릭스</button>
+                    <button class="char-btn" id="btn-elara" onclick="switchCharacter('Elara')">엘라라</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stats-item">이름: <span id="p-name" style="color:var(--accent-color); font-weight:bold;">칼릭스</span></div>
+                    <div class="stats-item">레벨: <span id="p-lvl" style="color:var(--xp-color); font-weight:bold;">1</span></div>
+                    <div class="stats-item">상태: <span id="p-status" style="color:var(--success-color); font-weight:bold;">양호</span></div>
+                    <div class="stats-item">남은 AP: <span id="p-ap" style="color:var(--success-color); font-weight:bold;">2</span> / 2</div>
+                    <div class="stats-item">HP: <span id="p-hp">150</span> / <span id="p-max-hp">150</span></div>
+                    <div class="stats-item">MP: <span id="p-mp">40</span> / <span id="p-max-mp">40</span></div>
+                    <div class="stats-item">공격력: <span id="p-atk">30</span></div>
+                    <div class="stats-item">방어력: <span id="p-def">50</span></div>
+                    <div class="stats-item">속도(Speed): <span id="p-spd">10</span></div>
+                </div>
+                <div class="xp-container">
+                    <div class="xp-label"><span>경험치 (XP)</span><span id="xp-text">0 / 100</span></div>
+                    <div class="xp-track"><div class="xp-fill" id="xp-bar"></div></div>
+                </div>
+                <div class="stats-item" style="margin-top:5px; font-size:0.65rem;" id="ishtar-humidity-box">
+                    💧 필드 습도: <span id="ishtar-humidity-val">100%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="center-side">
+            <div class="stage-info-bar">
+                <div style="display:flex; justify-content:space-between;">
+                    <div>현재 구역: <span id="stage-num" style="color:var(--accent-color);">1단계</span></div>
+                    <div>남은 왜곡 세력: <span id="wave-count" style="color:var(--danger-color);">0</span></div>
+                </div>
+            </div>
+
+            <div class="grid-board" id="battle-grid"></div>
+
+            <div class="action-panel">
+                <button class="action-btn btn-blue" id="btn-atk" onclick="playerAction('attack')">기본 공격 (1 AP)</button>
+                <button class="action-btn btn-purple" id="btn-skill-name" onclick="playerAction('skill')">스킬 (1 AP)</button>
+                <button class="action-btn btn-green" id="btn-purify" onclick="playerAction('purify')">대지 정화 (1 AP)</button>
+                <button class="action-btn btn-gray" id="btn-skip" onclick="endPlayerPhase()">턴 넘기기</button>
+            </div>
+
+            <div class="console-log" id="log-container"></div>
+        </div>
+
+        <div class="right-side">
+            <div class="panel">
+                <h2>위해 정보 레이더</h2>
+                <div class="enemy-radar-box" id="radar-content">
+                    <p style="text-align:center; color:#8b949e;">[ 안개 속에서 위협을 탐색 중입니다 ]</p>
+                </div>
+            </div>
+
+            <div class="panel" style="font-size:0.68rem; line-height:1.35;">
+                <h2>왜곡 세력 백과사전</h2>
+                <div style="max-height:160px; overflow-y:auto; padding-right:2px;">
+                    <strong>[자원 및 조율 연산 규칙]</strong>
+                    <ul style="padding-left:12px; margin:2px 0; color:var(--warning-color);">
+                        <li>자연 회복량 하향: 턴 시작 시 MP 8 고정 회복. [cite: 44, 46]</li>
+                        <li>대지 정화 리빌딩: 사용 시 발밑 해로운 지대 청소 및 HP 10, MP 5 회복. [cite: 31, 33]</li>
+                    </ul>
+                    <strong>[잡몹 패턴]</strong>
+                    <ul style="padding-left:12px; margin:2px 0;">
+                        <li>Hound: 사망 시 화염 대지 생성. [cite: 33]</li>
+                        <li>Wraith: 물리 회피 50%, 턴 시작 시 MP 강탈. [cite: 33]</li>
+                        <li>Anemone: 피격 시 속박(대지정화로 해제 가능). [cite: 33]</li>
+                        <li>Blackout: 피격 시 아군의 속도 영구 디버프. [cite: 33]</li>
+                        <li>Slave: 매 턴 무작위 아군 강제 도발. [cite: 33]</li>
+                        <li>Rust Guard: 정면 데미지 80% 가드 (배후 유효). [cite: 33]</li>
+                    </ul>
+                    <strong>[재앙의 군주(보스)]</strong>
+                    <ul style="padding-left:12px; margin:2px 0;">
+                        <li>바벨: 카이팅 기동 후 포격. 불발탄 타일로 저지. [cite: 35]</li>
+                        <li>노스페라: 도망치며 전염병 살포. 거리두기 필수. [cite: 36]</li>
+                        <li>그레고리: UI 정보 및 본체 은폐. 대사 힌트로 타격. [cite: 37]</li>
+                        <li>이쉬타르: 습도 흡수 차단. 대지 정화로 수분 주입. [cite: 38]</li>
+                        <li>제노스: 데미지 30% 공유 사슬 연결. [cite: 40]</li>
+                        <li>플루토: MP 소모 시 쉴드 폭발 획득. 평타 권장. [cite: 41]</li>
+                        <li>아포리아: 5턴 타임어택 배리어 미 파괴 시 소멸. [cite: 42]</li>
+                        <li>엔트로피: 테두리 타일 붕괴로 전장 축소. [cite: 43]</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal-content">
+            <h3 id="modal-title">세계의 정위치</h3>
+            <p id="modal-desc">결과 분석</p>
+            <button class="modal-btn" onclick="resetGame()">저울 재정렬</button>
+        </div>
+    </div>
+
+    <script>
+        let sdgs = { Human: 50, Society: 50, Planet: 50, Prosperity: 50, Peace: 50 };
+
+        const HERO_DATA = {
+            Calix: {
+                name: "칼릭스", hp: 150, maxHp: 150, mp: 40, maxMp: 40, atk: 30, def: 50, spd: 10,
+                skillName: "방패 밀치기",
+                skillDesc: "MP 10 소모. 수호의 방패로 강타하여 그로기를 대폭 깎습니다."
+            },
+            Elara: {
+                name: "엘라라", hp: 100, maxHp: 100, mp: 100, maxMp: 100, atk: 45, def: 20, spd: 15,
+                skillName: "원소 복쇄",
+                skillDesc: "MP 20 소모. 광역 원소 피해를 주며 모든 화염 대지를 정화합니다."
+            }
+        };
+
+        const STAGE_CONFIGS = [
+            { name: "1단계: 왜곡 구역 (기초 위해)", enemies: ["Carbon Hound", "Smog Wraith"] },
+            { name: "2단계: 인프라 오염지 (제한 왜곡)", enemies: ["Plastic Anemone", "Blackout"] },
+            { name: "3단계: 균열의 배후지 (정예 경비)", enemies: ["Dopamine Slave", "Rust Guard"] },
+            { name: "보스전 I: 전쟁의 바벨", enemies: ["The Babel"] },
+            { name: "보스전 II: 전염의 노스페라", enemies: ["Nosfera"] },
+            { name: "보스전 III: 무지의 그레고리", enemies: ["Gregory"] },
+            { name: "보스전 IV: 기후의 이쉬타르", enemies: ["Ishtar"] },
+            { name: "보스전 V: 차별의 제노스", enemies: ["Zenos"] },
+            { name: "보스전 VI: 탐욕의 플루토", enemies: ["Pluto"] },
+            { name: "보스전 VII: 무관심의 아포리아", enemies: ["Aporia"] },
+            { name: "최종장: 환경의 기괴 엔트로피", enemies: ["Entropy"] }
+        ];
+
+        const MONSTER_TEMPLATES = {
+            "Carbon Hound": { name: "Carbon Hound", theme: "Planet", hp: 70, def: 12, atk: 12, groggy: 30, xpReward: 50, desc: "사망 시 위치 타일을 화염 지대로 바꿉니다." },
+            "Smog Wraith": { name: "Smog Wraith", theme: "Human", hp: 60, def: 8, atk: 15, groggy: 25, xpReward: 50, desc: "물리 회피 50%, 턴 시작 시 조율사 MP 6 흡수." },
+            "Plastic Anemone": { name: "Plastic Anemone", theme: "Planet", hp: 90, def: 15, atk: 14, groggy: 40, xpReward: 60, desc: "전투 개시/피격 시 아군을 2턴간 속박합니다." },
+            "Blackout": { name: "Blackout", theme: "Prosperity", hp: 80, def: 20, atk: 16, groggy: 35, xpReward: 60, desc: "공격 피격 시 아군의 기동 속도(Speed)를 영구 하락시킵니다." },
+            "Dopamine Slave": { name: "Dopamine Slave", theme: "Society", hp: 75, def: 10, atk: 18, groggy: 30, xpReward: 70, desc: "매 턴 무작위로 조율사에게 강제 도발을 시전합니다." },
+            "Rust Guard": { name: "Rust Guard", theme: "Peace", hp: 110, def: 45, atk: 12, groggy: 50, xpReward: 80, desc: "정면 타격 데미지 80% 반감. 배후에서 기습해야 유효합니다." },
+            
+            "The Babel": { name: "바벨", theme: "Peace", hp: 200, def: 30, atk: 25, groggy: 70, xpReward: 150, desc: "도망치며 포격. 맵의 불발탄(★)을 밟아 포격 시스템을 마비시키십시오." },
+            "Nosfera": { name: "노스페라", theme: "Human", hp: 220, def: 25, atk: 20, groggy: 70, xpReward: 150, desc: "인접 시 도망가며 전염병 살포. 거리가 가까우면 감염 피해를 입습니다." },
+            "Gregory": { name: "그레고리", theme: "Society", hp: 240, def: 28, atk: 22, groggy: 80, xpReward: 150, desc: "정보 및 본체 위치가 은폐됩니다. 대사 힌트로 예측해 타격하세요." },
+            "Ishtar": { name: "이쉬타르", theme: "Planet", hp: 250, def: 20, atk: 24, groggy: 75, xpReward: 150, desc: "매 턴 수분을 흡수합니다. 대지정화(물 타일 생성)로 습도를 채워 폭발을 저지하세요." },
+            "Zenos": { name: "제노스", theme: "Society", hp: 230, def: 35, atk: 23, groggy: 80, xpReward: 150, desc: "공격 시 차별의 데미지 사슬을 생성하여 받는 피해를 전이시킵니다." },
+            "Pluto": { name: "플루토", theme: "Prosperity", hp: 260, def: 40, atk: 22, groggy: 90, xpReward: 150, desc: "마나(MP) 소모 시 단단한 방어 쉴드가 즉시 충전됩니다." },
+            "Aporia": { name: "아포리아", theme: "Human", hp: 240, def: 15, atk: 26, groggy: 100, xpReward: 200, desc: "5턴 내 배리어를 완전히 파괴하지 못하면 영구 즉사 피해가 발동합니다." },
+            "Entropy": { name: "엔트로피", theme: "Planet", hp: 300, def: 30, atk: 25, groggy: 100, xpReward: 300, desc: "매 턴 맵의 외각 타일들이 영구 붕괴하며 행동 반경을 축소시킵니다." }
+        };
+
+        let currentStageIdx = 0;
+        let pCurrent = "Calix";
+        let player = { level: 1, exp: 0, maxExp: 100, hp: 150, maxHp: 150, mp: 40, maxMp: 40, atk: 30, def: 50, spd: 10, ap: 2, status: "양호", ccTurns: 0 };
+        
+        let activeEnemies = [];
+        let gridMap = []; // 0: 일반, 1: 화염, 2: 정화습지, 3: 불발탄, -1: 붕괴
+        let fogMap = [];
+        let playerPos = { r: 4, c: 2 };
+        let currentTurn = 1;
+        let isPlayerTurn = true;
+
+        // 보스전 특수 기믹 상태 관리 변수
+        let ishtarHumidity = 100;
+        let aporiaTimer = 5;
+        let aporiaShield = 150;
+        let plutoShield = 0;
+        let activeChainDamage = false;
+
+        function initGame() {
+            gridMap = Array.from({length: 5}, () => Array(5).fill(0));
+            fogMap = Array.from({length: 5}, () => Array(5).fill(true));
+            playerPos = { r: 4, c: 2 };
+            isPlayerTurn = true;
+            player.ap = 2;
+            player.ccTurns = 0;
+            player.status = "양호";
+
+            // 보스 기믹 변수 초기화
+            ishtarHumidity = 100;
+            aporiaTimer = 5;
+            aporiaShield = 150;
+            plutoShield = 0;
+            activeChainDamage = false;
+
+            loadStage();
+            calculateFogOfWar();
+            generateEnemyIntents();
+            renderBoard();
+            updateUI();
+            setButtonsDisabled(false);
+        }
+
+        function loadStage() {
+            const config = STAGE_CONFIGS[currentStageIdx];
+            activeEnemies = [];
+
+            // 플레이어 레벨에 맞춰 보스 스펙 동적 스케일링
+            const isBoss = config.name.includes("보스전") || config.name.includes("최종장");
+            const scaleFactor = 1 + (player.level - 1) * 0.15; // 레벨당 15% 스펙업
+
+            config.enemies.forEach((enemyId, idx) => {
+                const template = MONSTER_TEMPLATES[enemyId];
+                let r = Math.min(2, idx);
+                let c = (idx * 2 + 1) % 5;
+
+                activeEnemies.push({
+                    id: enemyId,
+                    name: template.name,
+                    theme: template.theme,
+                    hp: Math.round(template.hp * (isBoss ? scaleFactor : 1)),
+                    maxHp: Math.round(template.hp * (isBoss ? scaleFactor : 1)),
+                    def: Math.round(template.def * (isBoss ? scaleFactor : 1)),
+                    atk: Math.round(template.atk * (isBoss ? scaleFactor : 1)),
+                    groggy: template.groggy,
+                    maxGroggy: template.groggy,
+                    xpReward: template.xpReward,
+                    desc: template.desc,
+                    r: r, c: c,
+                    isStunned: false, intent: null
+                });
+            });
+
+            writeLog(`[구역 진입] "${config.name}" 구역에 진입했습니다.`, "system");
+        }
+
+        function calculateFogOfWar() {
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    fogMap[r][c] = true;
+                }
+            }
+            const viewRadius = 1;
+            for (let dr = -viewRadius; dr <= viewRadius; dr++) {
+                for (let dc = -viewRadius; dc <= viewRadius; dc++) {
+                    if (Math.abs(dr) + Math.abs(dc) <= viewRadius) {
+                        const nr = playerPos.r + dr;
+                        const nc = playerPos.c + dc;
+                        if (nr >= 0 && nr < 5 && nc >= 0 && nc < 5) fogMap[nr][nc] = false;
+                    }
+                }
+            }
+        }
+
+        function generateEnemyIntents() {
+            const gregoryAlive = activeEnemies.some(e => e.id === "Gregory" && e.hp > 0);
+            activeEnemies.forEach(e => {
+                if (e.hp <= 0) return;
+                if (e.isStunned) { e.intent = "Stunned"; return; }
+                if (gregoryAlive) { e.intent = "??"; return; } // 그레고리 생존시 정보은닉
+
+                const dist = Math.abs(playerPos.r - e.r) + Math.abs(playerPos.c - e.c);
+                if (e.id === "The Babel" || e.id === "Nosfera") {
+                    e.intent = "🏃도망 & 포격";
+                } else if (dist <= 1) {
+                    let calcDmg = Math.max(1, Math.round(e.atk * (100 / (100 + player.def))));
+                    e.intent = `⚔️${calcDmg}`;
+                } else {
+                    e.intent = "🏃추적 기동";
+                }
+            });
+        }
+
+        function switchCharacter(charKey) {
+            pCurrent = charKey;
+            const template = HERO_DATA[charKey];
+            player.level = 1; player.exp = 0; player.maxExp = 100;
+            player.hp = template.hp; player.maxHp = template.maxHp;
+            player.mp = template.mp; player.maxMp = template.maxMp;
+            player.atk = template.atk; player.def = template.def; player.spd = template.spd;
+            player.ap = 2; player.status = "양호"; player.ccTurns = 0;
+
+            document.getElementById("btn-calix").classList.toggle("active", charKey === "Calix");
+            document.getElementById("btn-elara").classList.toggle("active", charKey === "Elara");
+            document.getElementById("btn-skill-name").innerText = `${template.skillName} (1 AP)`;
+
+            writeLog(`조율사를 [${template.name}]로 재연결합니다.`, "system");
+            initGame();
+        }
+
+        function setButtonsDisabled(disabled) {
+            document.getElementById("btn-atk").disabled = disabled;
+            document.getElementById("btn-skill-name").disabled = disabled;
+            document.getElementById("btn-purify").disabled = disabled;
+            document.getElementById("btn-skip").disabled = disabled;
+        }
+
+        function handleTileClick(r, c) {
+            if (!isPlayerTurn) return;
+            if (player.status === "속박") { writeLog("⚠️ 덩굴 촉수에 속박되어 이동할 수 없습니다! 대지 정화 스킬로 풀어내세요.", "enemy"); return; }
+            if (player.ap < 1) return;
+            if (gridMap[r][c] === -1) return;
+
+            const dist = Math.abs(playerPos.r - r) + Math.abs(playerPos.c - c);
+            if (dist === 1) {
+                const enemyOnTile = activeEnemies.find(e => e.r === r && e.c === c && e.hp > 0);
+                
+                // 그레고리 은신 기믹: 실제로 보이지 않는 타일 맹타 방지용 위치 확인
+                const gregory = activeEnemies.find(e => e.id === "Gregory" && e.hp > 0);
+                const hasGregoryOnTile = gregory && gregory.r === r && gregory.c === c;
+
+                if (enemyOnTile && enemyOnTile.id !== "Gregory") return; 
+                if (hasGregoryOnTile) {
+                    writeLog("💥 앗! 이동하려던 허공에 거대한 형체가 만져집니다! 그레고리가 은신해있었습니다!", "enemy");
+                    return;
+                }
+
+                playerPos.r = r;
+                playerPos.c = c;
+                player.ap -= 1;
+
+                calculateFogOfWar();
+                writeLog(`🚶 (${r + 1}, ${c + 1}) 격자로 이동했습니다.`, "player");
+
+                if (gridMap[r][c] === 1) {
+                    player.hp = Math.max(0, player.hp - 15);
+                    spawnDamagePopup(r, c, -15);
+                    writeLog("🔥 발밑의 탄소 화염 대지로 인해 화상 피해 15를 받았습니다!", "enemy");
+                }
+
+                if (gridMap[r][c] === 3) {
+                    gridMap[r][c] = 0;
+                    writeLog("💣 바벨의 불발탄 신관을 밟아 불발 포탄 정화를 격발했습니다!", "gimmick");
+                }
+
+                generateEnemyIntents();
+                renderBoard();
+                updateUI();
+                checkPlayerDefeated();
+
+                if (player.ap <= 0 && player.hp > 0) endPlayerPhase();
+            }
+        }
+
+        function playerAction(type) {
+            if (!isPlayerTurn || player.ap < 1) return;
+
+            let targetEnemy = null;
+            let minDist = 99;
+
+            // 도발(Dopamine Slave) 기믹 작동 시 강제 대조
+            const taunter = activeEnemies.find(e => e.id === "Dopamine Slave" && e.hp > 0);
+            if (taunter && !fogMap[taunter.r][taunter.c]) {
+                targetEnemy = taunter;
+                minDist = Math.abs(playerPos.r - taunter.r) + Math.abs(playerPos.c - taunter.c);
+            } else {
+                activeEnemies.forEach(e => {
+                    if (e.hp > 0 && !fogMap[e.r][e.c]) {
+                        const d = Math.abs(playerPos.r - e.r) + Math.abs(playerPos.c - e.c);
+                        if (d < minDist) { minDist = d; targetEnemy = e; }
+                    }
+                });
+            }
+
+            if (type === 'attack') {
+                if (!targetEnemy || minDist > 1) { writeLog("사거리 1 내에 유효한 표적이 없습니다.", "system"); return; }
+                player.ap -= 1;
+                executeAttack(targetEnemy);
+            } else if (type === 'skill') {
+                const cost = pCurrent === "Calix" ? 10 : 20;
+                if (player.mp < cost) { writeLog("MP가 부족합니다.", "system"); return; }
+                if (!targetEnemy || minDist > 2) { writeLog("스킬 사거리 2 내에 표적이 없습니다.", "system"); return; }
+                
+                player.mp -= cost;
+                player.ap -= 1;
+
+                // 플루토 기믹: 마나 소모 시 보스의 단단한 쉴드 획득
+                const pluto = activeEnemies.find(e => e.id === "Pluto" && e.hp > 0);
+                if (pluto) {
+                    plutoShield += 45;
+                    writeLog("🪙 [Pluto 탐욕] 마나 파동을 흡수한 보스가 강력한 차단 장벽 45를 충전합니다!", "gimmick");
+                }
+
+                executeSkill(targetEnemy);
+            } else if (type === 'purify') {
+                // [밸런싱 완료] 대지 정화 사용 시: 지형 정화 + 10 HP 회복 + 5 MP 회복
+                player.ap -= 1;
+                let originalTile = gridMap[playerPos.r][playerPos.c];
+                gridMap[playerPos.r][playerPos.c] = 2; // 습지로 정화
+
+                const healHP = 10;
+                const healMP = 5;
+                player.hp = Math.min(player.maxHp, player.hp + healHP);
+                player.mp = Math.min(player.maxMp, player.mp + healMP);
+                
+                spawnDamagePopup(playerPos.r, playerPos.c, `+${healHP} HP`);
+
+                // 상태이상 일괄 해제
+                player.status = "양호";
+                player.ccTurns = 0;
+                activeChainDamage = false;
+
+                adjustSDGs("Planet", 15);
+                writeLog(`✨ [대지 정화 회복] 1턴을 소모해 대지를 정화하고 HP 10 및 MP 5를 확보했습니다! (디버프 해제)`, "player");
+
+                // 이쉬타르 습도 수혈
+                if (activeEnemies.some(e => e.id === "Ishtar" && e.hp > 0)) {
+                    ishtarHumidity = Math.min(100, ishtarHumidity + 35);
+                    writeLog("💧 [Ishtar 수분 충전] 정화 습지가 대기에 동화되어 필드 습도가 35% 보정되었습니다.", "gimmick");
+                }
+                
+                generateEnemyIntents();
+                renderBoard();
+                updateUI();
+                if (player.ap <= 0 && player.hp > 0) endPlayerPhase();
+            }
+        }
+
+        function executeAttack(target) {
+            // 그레고리 은신 상태 시 타격 연산
+            if (target.id === "Gregory" && target.isEnsnaredInVoid) {
+                target.isEnsnaredInVoid = false;
+                writeLog("👁️ [그레고리 속삭임] 허공을 가르는 주먹이 그레고리의 기괴한 실체를 은신에서 끌어냈습니다!", "gimmick");
+            }
+
+            let dmg = Math.max(1, Math.round(player.atk * (100 / (100 + target.def))));
+            
+            // Rust Guard 배후 공격 체크
+            const isBackAttack = playerPos.c < target.c;
+            if (target.id === "Rust Guard" && !isBackAttack) {
+                dmg = Math.max(1, Math.round(dmg * 0.2));
+                writeLog("🛡️ [Rust Guard 가드] 정면 대격돌입니다! 피해량이 80% 무력화되었습니다! 배후를 공략하십시오.", "gimmick");
+            }
+
+            // Smog Wraith 회피
+            if (target.id === "Smog Wraith" && Math.random() < 0.5) {
+                writeLog(`💨 Smog Wraith가 연기구름 뒤로 물리 타격을 완전 회피했습니다!`, "gimmick");
+                spawnDamagePopup(target.r, target.c, "Miss");
+            } else {
+                if (plutoShield > 0) {
+                    const absorbed = Math.min(plutoShield, dmg);
+                    plutoShield -= absorbed;
+                    dmg -= absorbed;
+                    writeLog(`🪙 플루토의 강철 쉴드가 피해량 ${absorbed}를 감쇄했습니다. (남은 배리어: ${plutoShield})`, "gimmick");
+                }
+
+                if (dmg > 0) {
+                    target.hp = Math.max(0, target.hp - dmg);
+                    target.groggy = Math.max(0, target.groggy - 15);
+                    spawnDamagePopup(target.r, target.c, -dmg);
+                    writeLog(`⚔️ [기본 타격] ${target.name}에게 ${dmg}의 데미지를 주었습니다.`, "player");
+                }
+
+                // Plastic Anemone 촉수 속박
+                if (target.id === "Plastic Anemone" && target.hp > 0) {
+                    player.status = "속박"; player.ccTurns = 2;
+                    writeLog("⚠️ [Anemone 촉수] 기괴한 심해 촉수가 플레이어를 옭아맸습니다. (2턴간 이동 정지)", "gimmick");
+                }
+            }
+
+            if (target.groggy <= 0 && !target.isStunned) {
+                target.isStunned = true;
+                writeLog(`💤 ${target.name}의 방어가 박살나 그로기 붕괴 상태에 빠졌습니다! 다음 턴 무방비가 됩니다.`, "gimmick");
+            }
+
+            checkEnemyDefeated(target);
+            generateEnemyIntents();
+            renderBoard();
+            updateUI();
+            if (player.hp > 0 && player.ap <= 0) endPlayerPhase();
+        }
+
+        function executeSkill(target) {
+            let damage = 0;
+            if (pCurrent === "Calix") {
+                damage = Math.max(1, Math.round((player.atk + player.def * 0.6) * (100 / (100 + target.def))));
+                target.groggy = Math.max(0, target.groggy - 35);
+                writeLog(`🛡️ [방패 밀치기] 중공격 대미지 ${damage}을 날려 그로기 게이지를 35 저해했습니다.`, "player");
+            } else {
+                damage = Math.max(1, Math.round((player.atk * 1.5) * (100 / (100 + target.def))));
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        if (gridMap[r][c] === 1) gridMap[r][c] = 2;
+                    }
+                }
+                writeLog(`🔮 [원소 복쇄] 대지의 독소 화염들을 일시에 정화하며 ${damage}의 속성 폭쇄 피해를 입혔습니다.`, "player");
+            }
+
+            if (plutoShield > 0) {
+                const absorbed = Math.min(plutoShield, damage);
+                plutoShield -= absorbed;
+                damage -= absorbed;
+            }
+
+            if (damage > 0) {
+                target.hp = Math.max(0, target.hp - damage);
+                spawnDamagePopup(target.r, target.c, -damage);
+            }
+
+            if (target.groggy <= 0 && !target.isStunned) {
+                target.isStunned = true;
+                writeLog(`💤 ${target.name}가 충격으로 기절했습니다!`, "gimmick");
+            }
+
+            checkEnemyDefeated(target);
+            generateEnemyIntents();
+            renderBoard();
+            updateUI();
+            if (player.hp > 0 && player.ap <= 0) endPlayerPhase();
+        }
+
+        function spawnDamagePopup(r, c, val, isLevelUp = false) {
+            const board = document.getElementById("battle-grid");
+            const popup = document.createElement("div");
+            popup.className = "damage-popup" + (isLevelUp ? " level-popup" : "");
+            popup.innerText = val;
+            
+            const tileWidth = board.clientWidth / 5;
+            const tileHeight = board.clientHeight / 5;
+            popup.style.left = `${c * tileWidth + (tileWidth / 2) - 15}px`;
+            popup.style.top = `${r * tileHeight + (tileHeight / 2) - 15}px`;
+
+            board.appendChild(popup);
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        function endPlayerPhase() {
+            isPlayerTurn = false;
+            setButtonsDisabled(true);
+            writeLog("[전황 변동] 적 왜곡 전술 계산 및 반격 기동에 진입합니다.", "system");
+            setTimeout(enemyPhase, 600);
+        }
+
+        function enemyPhase() {
+            // 그레고리 은신 패턴
+            const gregory = activeEnemies.find(e => e.id === "Gregory" && e.hp > 0);
+            if (gregory) {
+                gregory.isEnsnaredInVoid = true;
+                const hints = [
+                    "🗣️ [그레고리 가청 주파수] '너희의 연산력은 나의 고독한 침묵 속에 묻힌다.' (동쪽 방면에서 음산한 한기가 올라옵니다)",
+                    "🗣️ [그레고리 가청 주파수] '눈을 감는 자가 이 지옥에서 가장 평화롭도다.' (북서쪽 어둠 너머로 그림자가 슬며시 지나갑니다)",
+                    "🗣️ [그레고리 가청 주파수] '저울은 파괴를 위해 존재하거늘.' (플레이어의 등 바로 뒤쪽에서 나직하게 웃음소리가 울려퍼집니다)"
+                ];
+                writeLog(hints[Math.floor(Math.random() * hints.length)], "gimmick");
+            }
+
+            // 바벨 카이팅 및 포격 기믹
+            const babel = activeEnemies.find(e => e.id === "The Babel" && e.hp > 0);
+            if (babel && !babel.isStunned) {
+                let diffR = babel.r - playerPos.r;
+                let diffC = babel.c - playerPos.c;
+                let targetR = babel.r + (diffR !== 0 ? Math.sign(diffR) : 0);
+                let targetC = babel.c + (diffC !== 0 ? Math.sign(diffC) : 0);
+
+                targetR = Math.max(0, Math.min(4, targetR));
+                targetC = Math.max(0, Math.min(4, targetC));
+                if (gridMap[targetR][targetC] !== -1 && !(targetR === playerPos.r && targetC === playerPos.c)) {
+                    babel.r = targetR; babel.c = targetC;
+                    writeLog("🏃 [바벨 전술 카이팅] 플레이어의 리치를 영악하게 벗어나 사선 밖으로 물러섰습니다!", "gimmick");
+                }
+
+                let bombCount = 0;
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        if (gridMap[r][c] === 3) bombCount++;
+                    }
+                }
+
+                if (bombCount > 0) {
+                    let bombDmg = 35;
+                    player.hp = Math.max(0, player.hp - bombDmg);
+                    spawnDamagePopup(playerPos.r, playerPos.c, -bombDmg);
+                    writeLog(`💥 [The Babel 포격] 낙하 지연된 포격이 직격해 조율사에게 ${bombDmg}의 파쇄 대미지를 꽂았습니다!`, "enemy");
+                }
+
+                let randR = Math.floor(Math.random() * 5);
+                let randC = Math.floor(Math.random() * 5);
+                if (gridMap[randR][randC] === 0) {
+                    gridMap[randR][randC] = 3;
+                    writeLog(`★ [바벨 포격 락온] (${randR+1}, ${randC+1}) 대지 격자에 붉은 불발탄 유도 고리가 박혔습니다!`, "gimmick");
+                }
+            }
+
+            // 노스페라 카이팅 질병 살포
+            const nosfera = activeEnemies.find(e => e.id === "Nosfera" && e.hp > 0);
+            if (nosfera && !nosfera.isStunned) {
+                const distToBoss = Math.abs(playerPos.r - nosfera.r) + Math.abs(playerPos.c - nosfera.c);
+                if (distToBoss <= 1.5) {
+                    let stepR = nosfera.r + (nosfera.r > playerPos.r ? 1 : -1);
+                    let stepC = nosfera.c + (nosfera.c > playerPos.c ? 1 : -1);
+                    stepR = Math.max(0, Math.min(4, stepR));
+                    stepC = Math.max(0, Math.min(4, stepC));
+                    if (gridMap[stepR][stepC] !== -1 && !(stepR === playerPos.r && stepC === playerPos.c)) {
+                        nosfera.r = stepR; nosfera.c = stepC;
+                        writeLog("🏃 [노스페라 기동] 독기 어린 웃음소리와 함께 멀찌감치 기동 회피를 감행합니다.", "gimmick");
+                    }
+                }
+
+                player.status = "전염병";
+                player.hp = Math.max(0, player.hp - 20);
+                spawnDamagePopup(playerPos.r, playerPos.c, -20);
+                writeLog("🤢 [노스페라 전염 감염] 질병의 구름이 퍼집니다! (정화 스킬로 속히 구제하십시오)", "enemy");
+            }
+
+            // 이쉬타르 가뭄 가속
+            const ishtar = activeEnemies.find(e => e.id === "Ishtar" && e.hp > 0);
+            if (ishtar) {
+                ishtarHumidity = Math.max(0, ishtarHumidity - 25);
+                writeLog(`💧 [이쉬타르의 흡수] 보스가 가뭄의 안개로 주변 수화율을 빠르게 탈취합니다. (현재 필드 습도: ${ishtarHumidity}%)`, "gimmick");
+                if (ishtarHumidity < 20) {
+                    player.hp = Math.max(0, player.hp - 45);
+                    spawnDamagePopup(playerPos.r, playerPos.c, -45);
+                    writeLog("🚨 [가뭄 임계점 폭파] 극가뭄으로 인한 문명 붕괴성 왜곡 대폭발! 생명력 45를 소멸당했습니다!", "enemy");
+                }
+            }
+
+            // 아포리아 소멸 타임어택 기믹
+            const aporia = activeEnemies.find(e => e.id === "Aporia" && e.hp > 0);
+            if (aporia) {
+                aporiaTimer--;
+                writeLog(`⏳ [아포리아 배리어 충전] 보호막을 감싼 지 이제 ${aporiaTimer}턴 남았습니다.`, "gimmick");
+                if (aporiaTimer <= 0) {
+                    player.hp = 0;
+                    writeLog("🚨 [즉사] 아포리아의 무관심 왜곡 응결이 터졌습니다. 조율사가 완전히 소멸했습니다.", "enemy");
+                }
+            }
+
+            activeEnemies.forEach(e => {
+                if (e.hp <= 0) return;
+
+                if (e.isStunned) {
+                    writeLog(`💤 ${e.name}는 과부하 기절로 공격 기동을 개시할 수 없습니다.`, "gimmick");
+                    e.isStunned = false;
+                    e.groggy = e.maxGroggy;
+                    return;
+                }
+
+                if (e.id === "Smog Wraith") {
+                    player.mp = Math.max(0, player.mp - 6);
+                    writeLog("💨 [Smog Wraith] 대기 오염을 일으켜 조율사의 마나를 6 강탈해갔습니다.", "gimmick");
+                }
+
+                let dist = Math.abs(playerPos.r - e.r) + Math.abs(playerPos.c - e.c);
+
+                if (dist > 1 && e.id !== "The Babel" && e.id !== "Nosfera") {
+                    let nextR = e.r, nextC = e.c;
+                    if (e.r !== playerPos.r) nextR += (e.r < playerPos.r ? 1 : -1);
+                    else if (e.c !== playerPos.c) nextC += (e.c < playerPos.c ? 1 : -1);
+
+                    const isOccupied = activeEnemies.some(other => other.r === nextR && other.c === nextC && other.hp > 0);
+                    if (gridMap[nextR][nextC] !== -1 && !isOccupied) {
+                        e.r = nextR; e.c = nextC;
+                        dist = Math.abs(playerPos.r - e.r) + Math.abs(playerPos.c - e.c);
+                    }
+                }
+
+                if (dist <= 1 && e.id !== "The Babel" && e.id !== "Nosfera") {
+                    let dmg = Math.max(1, Math.round(e.atk * (100 / (100 + player.def))));
+
+                    if (e.id === "Zenos") {
+                        activeChainDamage = true;
+                        writeLog("⛓️ [제노스 연쇄의 사슬] 아군 간을 묶는 왜곡 사슬이 생겼습니다!", "gimmick");
+                    }
+
+                    if (activeChainDamage) {
+                        dmg = Math.round(dmg * 1.35);
+                        writeLog("⛓️ 사슬이 팽팽해지며 왜곡 보정 피해가 대폭 증가했습니다!", "enemy");
+                    }
+
+                    player.hp = Math.max(0, player.hp - dmg);
+                    spawnDamagePopup(playerPos.r, playerPos.c, -dmg);
+                    writeLog(`💥 [피격] ${e.name}에게 접근 공격을 허용해 ${dmg}의 타격을 받았습니다.`, "enemy");
+
+                    if (e.id === "Blackout") {
+                        player.spd = Math.max(2, player.spd - 2);
+                        writeLog("⚡ [Blackout 과전류] 조율사의 기동 속도(Speed) 수치를 영구 2 감소시켜 후속 턴 순서를 저해했습니다.", "gimmick");
+                    }
+                }
+
+                if (e.id === "Entropy") collapseMapWalls();
+            });
+
+            // 플레이어 디버프 정리
+            if (player.ccTurns > 0) {
+                player.ccTurns--;
+                if (player.ccTurns === 0) {
+                    player.status = "양호";
+                    writeLog("✨ 옥죄던 속박 상태가 자연적으로 완화되었습니다.", "system");
+                }
+            }
+
+            checkPlayerDefeated();
+
+            if (player.hp > 0) {
+                // [밸런싱 완료] 매 턴 MP 자연 회복 방식을 최대 마나 비례 대신 고정 8 MP 회복으로 변환
+                player.mp = Math.min(player.maxMp, player.mp + 8);
+                player.ap = 2;
+                isPlayerTurn = true;
+                currentTurn++;
+                setButtonsDisabled(false);
+                generateEnemyIntents();
+                renderBoard();
+                updateUI();
+                writeLog(`[새 턴 가동] 턴 ${currentTurn}이 개시됩니다. 마나 8 자연 충전 완료. (마나 절약 필수)`, "system");
+            }
+        }
+
+        function collapseMapWalls() {
+            let collapsed = false;
+            for (let i = 0; i < 5; i++) {
+                if (gridMap[0][i] !== -1) { gridMap[0][i] = -1; collapsed = true; }
+                if (gridMap[4][i] !== -1) { gridMap[4][i] = -1; collapsed = true; }
+                if (gridMap[i][0] !== -1) { gridMap[i][0] = -1; collapsed = true; }
+                if (gridMap[i][4] !== -1) { gridMap[i][4] = -1; collapsed = true; }
+            }
+            if (collapsed) {
+                writeLog("🚨 [엔트로피 축소 균열] 지진과 대기 폭발이 일어나 필드 외각 대지가 영구 붕괴했습니다!", "gimmick");
+                if (gridMap[playerPos.r][playerPos.c] === -1) {
+                    playerPos = { r: 2, c: 2 };
+                }
+            }
+        }
+
+        function adjustSDGs(theme, val) {
+            sdgs[theme] = Math.min(100, sdgs[theme] + val);
+            
+            const list = Object.keys(sdgs).filter(t => t !== theme);
+            const loss1 = list[Math.floor(Math.random() * list.length)];
+            const loss2 = list.filter(t => t !== loss1)[Math.floor(Math.random() * (list.length - 1))];
+
+            sdgs[loss1] = Math.max(0, sdgs[loss1] - Math.round(val * 0.4));
+            sdgs[loss2] = Math.max(0, sdgs[loss2] - Math.round(val * 0.3));
+
+            writeLog(`⚖️ [SDGs 상충 저울 반응] ${theme} 복구로 인해 균형 유지 실패로 ${loss1}와 ${loss2} 수치가 하락했습니다.`, "system");
+            checkEndingConditions();
+        }
+
+        function gainExp(amount) {
+            player.exp += amount;
+            writeLog(`✨ 정화 보상으로 경험치 +${amount} XP를 획득했습니다.`, "system");
+
+            while (player.exp >= player.maxExp) {
+                player.exp -= player.maxExp;
+                player.level += 1;
+                player.maxExp = player.level * 100;
+
+                if (pCurrent === "Calix") {
+                    player.maxHp += 25; player.atk += 6; player.def += 12; player.maxMp += 5;
+                } else {
+                    player.maxHp += 15; player.atk += 9; player.def += 5; player.maxMp += 20;
+                }
+
+                player.hp = player.maxHp;
+                player.mp = player.maxMp;
+
+                spawnDamagePopup(playerPos.r, playerPos.c, "Level Up!", true);
+                writeLog(`🎉 [레벨 업] 조율사의 대기동 조율 수준이 ${player.level}레벨로 가동되었습니다! 기본 스탯이 증가합니다.`, "levelup");
+            }
+        }
+
+        function checkEnemyDefeated(justAttackedEnemy) {
+            if (justAttackedEnemy && justAttackedEnemy.hp <= 0) {
+                writeLog(`💀 위해 형상 [${justAttackedEnemy.name}]이 흔적도 없이 완전히 격퇴 정화되었습니다!`, "system");
+                gainExp(justAttackedEnemy.xpReward);
+
+                if (justAttackedEnemy.id === "Carbon Hound") {
+                    gridMap[justAttackedEnemy.r][justAttackedEnemy.c] = 1;
+                    writeLog("🔥 [사망 잔재] Carbon Hound가 격파되며 격자 위로 짙은 탄소 불꽃이 피어오릅니다.", "gimmick");
+                }
+            }
+
+            const living = activeEnemies.filter(e => e.hp > 0);
+            if (living.length === 0) {
+                writeLog("🏆 해당 구역의 부정 왜곡 정복 완료!", "system");
+
+                if (currentStageIdx < STAGE_CONFIGS.length - 1) {
+                    currentStageIdx++;
+                    setTimeout(() => { initGame(); }, 1200);
+                } else {
+                    checkEndingConditions(true);
+                }
+            }
+        }
+
+        function checkPlayerDefeated() {
+            if (player.hp <= 0) {
+                showModal("파멸 (NEGATIVITY의 세계 점식)", "인류가 남긴 기후 왜곡에 의해 아스트레이아 조율 시스템이 완전히 잠식당했습니다.");
+            }
+        }
+
+        function checkEndingConditions(forceEnd = false) {
+            const avg = (sdgs.Human + sdgs.Society + sdgs.Planet + sdgs.Prosperity + sdgs.Peace) / 5;
+
+            if (avg >= 85) {
+                showModal("엔딩 루트 2: 공존과 자유 (Coexistence)", `아스트레이아 수복 지표 평균: ${avg.toFixed(1)}%<br><br>느슨한 자치구 간 평화로운 연합 체계 구축에 성공하며 인류의 자유와 다양성을 온전히 보전했습니다.`);
+            } else if (forceEnd && avg >= 50) {
+                showModal("엔딩 루트 1: 통제와 질서 (Order)", `아스트레이아 수복 지표 평균: ${avg.toFixed(1)}%<br><br>중앙집권적 강력한 군사 정부가 세상의 안녕은 보장했으나, 인간 고유의 유연성과 자율은 영구 정지되었습니다.`);
+            } else if (forceEnd && avg < 50) {
+                showModal("엔딩 루트 3: 독자 생존 (Solo)", `아스트레이아 수복 지표 평균: ${avg.toFixed(1)}%<br><br>세상의 위선적 평화를 포기하고 조율사 전원만이 격리 통제 정화된 극소수 구역에 웅크려 생존을 도모합니다.`);
+            }
+        }
+
+        function renderBoard() {
+            const board = document.getElementById("battle-grid");
+            board.innerHTML = "";
+
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const tile = document.createElement("div");
+                    tile.className = "tile";
+
+                    if (fogMap[r][c]) {
+                        tile.classList.add("foggy");
+                    } else {
+                        if (gridMap[r][c] === 1) tile.classList.add("fire-tile");
+                        if (gridMap[r][c] === 2) tile.classList.add("water-tile");
+                        if (gridMap[r][c] === 3) tile.classList.add("unexploded-bomb");
+                        if (gridMap[r][c] === -1) tile.classList.add("collapsed");
+
+                        const distToPlayer = Math.abs(playerPos.r - r) + Math.abs(playerPos.c - c);
+                        const hasEnemy = activeEnemies.some(e => e.r === r && e.c === c && e.hp > 0);
+
+                        if (isPlayerTurn && player.ap > 0 && player.status !== "속박") {
+                            if (distToPlayer === 1 && !hasEnemy && gridMap[r][c] !== -1) tile.classList.add("movable");
+                            else if (distToPlayer === 1 && hasEnemy) tile.classList.add("attackable");
+                        }
+
+                        if (playerPos.r === r && playerPos.c === c) {
+                            tile.classList.add("player-on");
+                            tile.innerHTML = `
+                                <div class="unit-wrapper">
+                                    <div class="hp-bar-outer"><div class="hp-bar-inner" style="width: ${(player.hp/player.maxHp)*100}%;"></div></div>
+                                    <span class="unit-icon">👤</span>
+                                    <span class="unit-name">${HERO_DATA[pCurrent].name}</span>
+                                </div>
+                            `;
+                        } else {
+                            const enemy = activeEnemies.find(e => e.r === r && e.c === c && e.hp > 0);
+                            if (enemy) {
+                                let hideDetails = (enemy.id === "Gregory" && enemy.isEnsnaredInVoid);
+
+                                if (hideDetails) {
+                                    tile.innerHTML = "";
+                                } else {
+                                    tile.classList.add("enemy-on");
+                                    
+                                    let intentBadgeHTML = "";
+                                    if (enemy.intent && enemy.intent !== "Stunned") {
+                                        intentBadgeHTML = `<div class="intent-badge">${enemy.intent}</div>`;
+                                    } else if (enemy.intent === "Stunned") {
+                                        intentBadgeHTML = `<div class="intent-badge" style="background-color: var(--purple-color)">💤</div>`;
+                                    }
+
+                                    tile.innerHTML = `
+                                        ${intentBadgeHTML}
+                                        <div class="unit-wrapper">
+                                            <div class="hp-bar-outer"><div class="hp-bar-inner" style="width: ${(enemy.hp/enemy.maxHp)*100}%;"></div></div>
+                                            <span class="unit-icon">😈</span>
+                                            <span class="unit-name">${enemy.name}</span>
+                                        </div>
+                                    `;
+                                }
+                            }
+                        }
+                    }
+
+                    tile.onclick = () => handleTileClick(r, c);
+                    board.appendChild(tile);
+                }
+            }
+
+            const radar = document.getElementById("radar-content");
+            let radarHTML = "";
+            let hasVisible = false;
+
+            activeEnemies.forEach(e => {
+                if (e.hp > 0 && !fogMap[e.r][e.c]) {
+                    hasVisible = true;
+                    let gregoryHide = (e.id === "Gregory" && e.isEnsnaredInVoid);
+                    
+                    const hpText = gregoryHide ? "??? / ???" : `${e.hp} / ${e.maxHp}`;
+                    const grogText = gregoryHide ? "???" : e.groggy;
+                    const intentText = gregoryHide ? "감지 마비됨" : (e.intent || '행동 대기');
+
+                    radarHTML += `
+                        <div style="margin-bottom: 5px; border-bottom: 1px dashed #30363d; padding-bottom: 3px;">
+                            <strong style="color:var(--danger-color);">${gregoryHide ? "안개 속 기괴 형상" : e.name}</strong> [${e.theme}]<br>
+                            체력: ${hpText} | 무력 게이지: ${grogText}<br>
+                            기동 의도: <span style="color:var(--warning-color); font-weight:bold;">${intentText}</span><br>
+                            <span style="font-size:0.65rem; color:#8b949e;">${e.desc}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            if (!hasVisible) {
+                radarHTML = `<p style="text-align:center; color:#8b949e;">[ 안개 속에서 위해의 흐름을 계산 중입니다... ]</p>`;
+            }
+            radar.innerHTML = radarHTML;
+        }
+
+        function updateUI() {
+            document.getElementById("p-name").innerText = HERO_DATA[pCurrent].name;
+            document.getElementById("p-lvl").innerText = player.level;
+            document.getElementById("p-status").innerText = player.status;
+            document.getElementById("p-status").style.color = player.status === "양호" ? "var(--success-color)" : "var(--danger-color)";
+            document.getElementById("p-hp").innerText = player.hp;
+            document.getElementById("p-max-hp").innerText = player.maxHp;
+            document.getElementById("p-mp").innerText = player.mp;
+            document.getElementById("p-max-mp").innerText = player.maxMp;
+            document.getElementById("p-atk").innerText = player.atk;
+            document.getElementById("p-def").innerText = player.def;
+            document.getElementById("p-ap").innerText = player.ap;
+            document.getElementById("p-spd").innerText = player.spd;
+
+            document.getElementById("xp-text").innerText = `${player.exp} / ${player.maxExp}`;
+            document.getElementById("xp-bar").style.width = `${(player.exp / player.maxExp) * 100}%`;
+
+            const ishtarActive = activeEnemies.some(e => e.id === "Ishtar" && e.hp > 0);
+            document.getElementById("ishtar-humidity-box").style.display = ishtarActive ? "block" : "none";
+            document.getElementById("ishtar-humidity-val").innerText = `${ishtarHumidity}%`;
+
+            const syncSDG = (id, val) => {
+                document.getElementById(`sdg-${id}-val`).innerText = `${val}%`;
+                document.getElementById(`sdg-${id}-bar`).style.width = `${val}%`;
+            };
+            syncSDG("human", sdgs.Human);
+            syncSDG("society", sdgs.Society);
+            syncSDG("planet", sdgs.Planet);
+            syncSDG("prosperity", sdgs.Prosperity);
+            syncSDG("peace", sdgs.Peace);
+
+            document.getElementById("stage-num").innerText = STAGE_CONFIGS[currentStageIdx].name;
+            document.getElementById("wave-count").innerText = activeEnemies.filter(e => e.hp > 0).length;
+        }
+
+        function writeLog(text, type) {
+            const container = document.getElementById("log-container");
+            const div = document.createElement("div");
+            div.className = `log-line log-${type}`;
+            div.innerHTML = `[턴 ${currentTurn}] ${text}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showModal(title, desc) {
+            document.getElementById("modal-title").innerHTML = title;
+            document.getElementById("modal-desc").innerHTML = desc;
+            document.getElementById("result-modal").style.display = "flex";
+        }
+
+        function resetGame() {
+            document.getElementById("result-modal").style.display = "none";
+            sdgs = { Human: 50, Society: 50, Planet: 50, Prosperity: 50, Peace: 50 };
+            currentStageIdx = 0;
+            const template = HERO_DATA[pCurrent];
+            player = { 
+                level: 1, exp: 0, maxExp: 100,
+                hp: template.hp, maxHp: template.maxHp, 
+                mp: template.mp, maxMp: template.maxMp, 
+                atk: template.atk, def: template.def, spd: template.spd, 
+                ap: 2, status: "양호", ccTurns: 0 
+            };
+            initGame();
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
